@@ -31,10 +31,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKey = async () => {
       try {
+        // window.aistudio가 있으면 우선 사용, 없으면 환경변수 체크
         if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
           const selected = await window.aistudio.hasSelectedApiKey();
           setIsKeySelected(selected);
         } else {
+          // Shim 덕분에 process.env 접근 시 에러가 발생하지 않음
           const apiKey = process.env.API_KEY;
           setIsKeySelected(!!apiKey);
         }
@@ -59,9 +61,9 @@ const App: React.FC = () => {
     try {
       if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
         await window.aistudio.openSelectKey();
-        setIsKeySelected(true); // 가이드라인: 호출 즉시 성공으로 가정
+        setIsKeySelected(true); // 호출 즉시 성공 간주하여 레이스 컨디션 방지
       } else {
-        alert("API 키가 환경 변수에 설정되어 있지 않습니다.");
+        alert("API 키가 설정되어 있지 않습니다. 관리자에게 문의하세요.");
       }
     } catch (err) {
       setIsKeySelected(true);

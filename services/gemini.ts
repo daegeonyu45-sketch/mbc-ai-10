@@ -2,7 +2,7 @@
 /**
  * SECURITY WARNING: 
  * This file does NOT contain any hardcoded API Keys.
- * The API Key is dynamically injected via process.env.API_KEY at runtime.
+ * It strictly follows the @google/genai SDK guidelines.
  */
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
@@ -16,17 +16,17 @@ const USE_DEMO_MODE = false;
  * MUST use: new GoogleGenAI({ apiKey: process.env.API_KEY })
  */
 const getAI = () => {
-  // index.html에서 Shim 처리가 되어 있으므로 process.env.API_KEY는 안전하게 접근 가능함
+  // index.html의 shim과 vite.config의 define 덕분에 안전하게 접근 가능
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("API_KEY가 감지되지 않았습니다. 먼저 API 키를 설정해 주세요.");
+    throw new Error("API 키가 설정되지 않았습니다. 터미널의 API 키 설정을 확인해 주세요.");
   }
   return new GoogleGenAI({ apiKey });
 };
 
 /**
- * 실시간 뉴스 보도 사진 검색 함수
+ * 실시간 뉴스 보도 사진 검색 함수 (Unsplash 활용)
  */
 export const fetchNewsImages = (query: string): string => {
   const encodedQuery = encodeURIComponent(query);
@@ -34,13 +34,16 @@ export const fetchNewsImages = (query: string): string => {
 };
 
 /**
- * AI 이미지 생성 함수
+ * AI 이미지 생성 함수 (Pollinations 활용)
  */
 export const generateAIImage = (prompt: string): string => {
   const encodedPrompt = encodeURIComponent(prompt);
   return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1200&height=675&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
 };
 
+/**
+ * 실시간 검색 보정 (Grounding)
+ */
 export const conductAIGroundingSearch = async (query: string, useMock: boolean = false) => {
   if (USE_DEMO_MODE || useMock) {
     await new Promise(r => setTimeout(r, 800));
@@ -73,6 +76,9 @@ export const conductAIGroundingSearch = async (query: string, useMock: boolean =
   }
 };
 
+/**
+ * 기사 카테고리 분류
+ */
 export const classifyArticle = async (text: string, useMock: boolean = false): Promise<CategoryType> => {
   try {
     const ai = getAI();
@@ -88,6 +94,9 @@ export const classifyArticle = async (text: string, useMock: boolean = false): P
   }
 };
 
+/**
+ * 기사 초안 생성
+ */
 export const generateArticleDraft = async (context: string, tone: string, length: string, useMock: boolean = false) => {
   try {
     const ai = getAI();
@@ -113,6 +122,9 @@ ${context}
   }
 };
 
+/**
+ * 콘텐츠 요약
+ */
 export const summarizeContent = async (text: string, useMock: boolean = false) => {
   try {
     const ai = getAI();
@@ -126,6 +138,9 @@ export const summarizeContent = async (text: string, useMock: boolean = false) =
   }
 };
 
+/**
+ * OSMU 콘텐츠 생성 (카드뉴스 & 대본)
+ */
 export const generateOSMUContent = async (article: string) => {
   try {
     const ai = getAI();
@@ -161,6 +176,9 @@ export const generateOSMUContent = async (article: string) => {
   }
 };
 
+/**
+ * 팩트 체크 및 제목 자극성 검사
+ */
 export const performFactCheck = async (rawContext: string, generatedArticle: string) => {
   try {
     const ai = getAI();
@@ -186,6 +204,9 @@ export const performFactCheck = async (rawContext: string, generatedArticle: str
   }
 };
 
+/**
+ * 기사 논쟁 추출
+ */
 export const extractDebatePoints = async (article: string) => {
   try {
     const ai = getAI();
@@ -211,6 +232,9 @@ export const extractDebatePoints = async (article: string) => {
   }
 };
 
+/**
+ * 고품질 뉴스 이미지 생성
+ */
 export const generateIllustrativeImage = async (prompt: string) => {
   try {
     const ai = getAI();
