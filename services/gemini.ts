@@ -3,7 +3,6 @@
  * SECURITY WARNING: 
  * This file does NOT contain any hardcoded API Keys.
  * The API Key is dynamically injected via process.env.API_KEY at runtime.
- * For deployment, please use the platform's built-in API Key Selection dialog.
  */
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
@@ -14,10 +13,10 @@ const USE_DEMO_MODE = false;
 
 /**
  * 인스턴스 생성 시점에 최신 API 키를 참조하도록 함수로 관리합니다.
- * ALWAYS use new GoogleGenAI({apiKey: process.env.API_KEY});
+ * MUST use: new GoogleGenAI({ apiKey: process.env.API_KEY })
  */
 const getAI = () => {
-  // App.tsx에서 Shim 처리가 되어 있으므로 process.env.API_KEY는 안전하게 접근 가능함
+  // index.html에서 Shim 처리가 되어 있으므로 process.env.API_KEY는 안전하게 접근 가능함
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
@@ -27,7 +26,7 @@ const getAI = () => {
 };
 
 /**
- * 실시간 뉴스 보도 사진 검색 함수 (Unsplash Source API 활용하여 '검색' 시뮬레이션)
+ * 실시간 뉴스 보도 사진 검색 함수
  */
 export const fetchNewsImages = (query: string): string => {
   const encodedQuery = encodeURIComponent(query);
@@ -35,7 +34,7 @@ export const fetchNewsImages = (query: string): string => {
 };
 
 /**
- * AI 이미지 생성 함수 (Pollinations.ai 활용)
+ * AI 이미지 생성 함수
  */
 export const generateAIImage = (prompt: string): string => {
   const encodedPrompt = encodeURIComponent(prompt);
@@ -45,10 +44,7 @@ export const generateAIImage = (prompt: string): string => {
 export const conductAIGroundingSearch = async (query: string, useMock: boolean = false) => {
   if (USE_DEMO_MODE || useMock) {
     await new Promise(r => setTimeout(r, 800));
-    return { 
-      text: "Mock 모드가 활성화되어 있습니다.", 
-      sources: [] 
-    };
+    return { text: "실시간 정보 검색 결과 예시입니다.", sources: ["https://example.com"] };
   }
 
   try {
@@ -103,9 +99,7 @@ ${context}
 [요구사항]:
 - 어조: ${tone}
 - 분량: ${length === 'short' ? '짧게' : length === 'long' ? '길게' : '적당하게'}
-- 언어: 한국어
-- 반드시 제공된 Context의 팩트에 기반할 것.
-- 마크다운 형식을 사용하지 말고 순수 텍스트 문단으로만 구성할 것.`;
+- 언어: 한국어`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -137,15 +131,7 @@ export const generateOSMUContent = async (article: string) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `기사 내용: ${article}
-
-위 기사를 바탕으로 다음 콘텐츠를 생성해 주세요:
-1) 카드뉴스 슬라이드 5개: 각 슬라이드별 텍스트, 이미지 검색용 키워드(영문), 그리고 이미지 소스 타입('search' 또는 'generate')을 결정하세요.
-   - 'search': 실제 인물(유명인), 사건 현장, 특정 장소 등 실사 보도 사진이 필요한 경우
-   - 'generate': 추상적인 개념, 미래, 기술 묘사 등 예술적 삽화가 어울리는 경우
-2) 유튜브 쇼츠용 구어체 대본(60초 내외)
-
-JSON 형식으로 응답해 주세요.`,
+      contents: `기사 내용: ${article}\n\n위 기사를 바탕으로 카드뉴스 슬라이드 5개와 유튜브 쇼츠용 대본을 생성하세요.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -158,7 +144,7 @@ JSON 형식으로 응답해 주세요.`,
                 properties: {
                   text: { type: Type.STRING },
                   image_keyword: { type: Type.STRING },
-                  image_source_type: { type: Type.STRING, description: "'search' or 'generate'" }
+                  image_source_type: { type: Type.STRING }
                 },
                 required: ["text", "image_keyword", "image_source_type"]
               } 
@@ -171,10 +157,7 @@ JSON 형식으로 응답해 주세요.`,
     });
     return JSON.parse(response.text || "{}");
   } catch (err) {
-    return { 
-      slides: [{ text: "내용 분석 중...", image_keyword: "news", image_source_type: "search" }], 
-      script: "대본을 생성할 수 없습니다." 
-    };
+    return { slides: [], script: "" };
   }
 };
 
@@ -183,7 +166,7 @@ export const performFactCheck = async (rawContext: string, generatedArticle: str
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `원문 데이터: ${rawContext}\n\n생성된 기사: ${generatedArticle}\n\n두 텍스트를 비교하여 1) 팩트 일치도 점수(0-100), 2) 제목의 자극성(낚시성) 점수(0-100), 3) 왜곡된 정보에 대한 경고 메시지를 JSON으로 출력하세요.`,
+      contents: `데이터 검증: ${rawContext} vs ${generatedArticle}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -208,7 +191,7 @@ export const extractDebatePoints = async (article: string) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `기사 내용: ${article}\n\n이 기사에서 다루는 사회적 논쟁 주제 하나와 그에 대한 찬성 의견 3가지, 반대 의견 3가지를 한국어로 추출해 주세요. JSON으로 응답하세요.`,
+      contents: `기사 논쟁 추출: ${article}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -224,7 +207,7 @@ export const extractDebatePoints = async (article: string) => {
     });
     return JSON.parse(response.text || "{}");
   } catch (err) {
-    return { topic: "추가 논의가 필요한 주제입니다.", pros: [], cons: [] };
+    return { topic: "", pros: [], cons: [] };
   }
 };
 
@@ -233,13 +216,11 @@ export const generateIllustrativeImage = async (prompt: string) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
-      contents: { parts: [{ text: `High-quality photojournalism style news photo about: ${prompt}. Professional lighting, 4k.` }] },
+      contents: { parts: [{ text: `High-quality news photo: ${prompt}` }] },
       config: { 
         imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
-        tools: [{ googleSearch: {} }] 
       },
     });
-    // Iterate through all parts to find the image part as per guidelines
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
