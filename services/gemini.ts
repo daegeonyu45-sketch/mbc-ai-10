@@ -3,6 +3,7 @@
  * SECURITY WARNING: 
  * This file does NOT contain any hardcoded API Keys.
  * It strictly follows the @google/genai SDK guidelines.
+ * The API key is injected via process.env.API_KEY at runtime.
  */
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
@@ -14,13 +15,14 @@ const USE_DEMO_MODE = false;
 /**
  * 인스턴스 생성 시점에 최신 API 키를 참조하도록 함수로 관리합니다.
  * MUST use: new GoogleGenAI({ apiKey: process.env.API_KEY })
+ * ReferenceError 방지를 위해 vite.config.ts에서 process.env가 정의되어 있습니다.
  */
 const getAI = () => {
-  // index.html의 shim과 vite.config의 define 덕분에 안전하게 접근 가능
+  // 플랫폼 주입 키 확인
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("API 키가 설정되지 않았습니다. 터미널의 API 키 설정을 확인해 주세요.");
+    throw new Error("API 키가 감지되지 않았습니다. API 키 설정을 확인해 주세요.");
   }
   return new GoogleGenAI({ apiKey });
 };

@@ -31,14 +31,25 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKey = async () => {
       try {
-        // window.aistudio가 있으면 우선 사용, 없으면 환경변수 체크
+        // 우선 플랫폼 전용 다이얼로그 확인
         if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
           const selected = await window.aistudio.hasSelectedApiKey();
           setIsKeySelected(selected);
         } else {
-          // Shim 덕분에 process.env 접근 시 에러가 발생하지 않음
-          const apiKey = process.env.API_KEY;
-          setIsKeySelected(!!apiKey);
+          // Vercel 배포 환경 등에서는 process.env 또는 localStorage 확인
+          // localStorage 키 이름은 GEMINI_API_KEY로 통일
+          const localKey = localStorage.getItem('GEMINI_API_KEY');
+          const envKey = process.env.API_KEY;
+          
+          if (localKey) {
+            // localStorage에 키가 있으면 process.env에 주입하여 SDK 호환성 유지
+            process.env.API_KEY = localKey;
+            setIsKeySelected(true);
+          } else if (envKey) {
+            setIsKeySelected(true);
+          } else {
+            setIsKeySelected(false);
+          }
         }
       } catch (error) {
         setIsKeySelected(false);
@@ -52,7 +63,7 @@ const App: React.FC = () => {
       try {
         setContents(JSON.parse(saved));
       } catch (e) {
-        console.error(e);
+        console.error("Failed to load saved contents", e);
       }
     }
   }, []);
@@ -61,9 +72,14 @@ const App: React.FC = () => {
     try {
       if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
         await window.aistudio.openSelectKey();
-        setIsKeySelected(true); // 호출 즉시 성공 간주하여 레이스 컨디션 방지
+        setIsKeySelected(true);
       } else {
-        alert("API 키가 설정되어 있지 않습니다. 관리자에게 문의하세요.");
+        const key = prompt("GEMINI API 키를 입력해 주세요 (localStorage에 안전하게 저장됩니다):");
+        if (key) {
+          localStorage.setItem('GEMINI_API_KEY', key);
+          process.env.API_KEY = key;
+          setIsKeySelected(true);
+        }
       }
     } catch (err) {
       setIsKeySelected(true);
@@ -113,7 +129,7 @@ const App: React.FC = () => {
           </div>
           <div className="space-y-4">
             <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">AuraFlow Terminal</h1>
-            <p className="text-slate-400 text-sm leading-relaxed">플랫폼 보안을 위해 API 키 설정이 필요합니다. 설정된 키는 환경 변수를 통해 안전하게 관리됩니다.</p>
+            <p className="text-slate-400 text-sm leading-relaxed">플랫폼 보안을 위해 API 키 설정이 필요합니다. 설정된 키는 브라우저 환경에 맞춰 안전하게 관리됩니다.</p>
           </div>
           <button onClick={handleOpenKeyDialog} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black flex items-center justify-center gap-3 transition-all">
             <ShieldCheck size={20} /> API 키 설정하고 시작하기

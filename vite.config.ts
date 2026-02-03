@@ -2,10 +2,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Vercel deployment requires base: '/' and a defined process.env for browser compatibility
 export default defineConfig({
   plugins: [react()],
-  // Vercel 배포를 위해 루트 경로를 사용하며, process.env 객체를 브라우저에 안전하게 정의합니다.
+  base: '/',
   define: {
     'process.env': {}
+  },
+  server: {
+    historyApiFallback: true,
   }
 });
