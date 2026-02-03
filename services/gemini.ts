@@ -15,7 +15,7 @@ const USE_DEMO_MODE = false;
  * 인스턴스 생성 시점에 localStorage에서 최신 API 키를 참조합니다.
  */
 const getAI = () => {
-  // 브라우저 localStorage에서 키 호출 (Vite/Vercel 환경 에러 방지)
+  // 브라우저 localStorage에서 키 호출 (process.env 사용 안 함)
   const apiKey = localStorage.getItem('GEMINI_API_KEY');
   
   if (!apiKey) {

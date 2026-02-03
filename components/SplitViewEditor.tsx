@@ -38,7 +38,6 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
   const [useMockMode, setUseMockMode] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
-  // Use any or ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace errors in browser environments
   const typingTimer = useRef<any>(null);
 
   const addToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
@@ -258,7 +257,7 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
             <div className="p-8 space-y-8">
               <div className="space-y-4">
                 <p className="text-xs font-bold text-slate-500 leading-relaxed italic">
-                  * API 키는 환경 변수(process.env.API_KEY)를 통해 자동으로 관리됩니다. 기사 작성이 안 될 경우 테스트 모드를 활용해 보세요.
+                  * API 키는 브라우저 보안 저장소(localStorage)를 통해 안전하게 관리됩니다. 기사 작성이 안 될 경우 설정을 확인해 주세요.
                 </p>
                 <div className="flex items-center justify-between p-5 bg-slate-800/50 rounded-2xl border border-slate-700">
                   <div className="space-y-1">

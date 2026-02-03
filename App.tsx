@@ -30,7 +30,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKey = async () => {
       try {
-        // 1. 플랫폼 전용 다이얼로그 확인
+        // 1. 플랫폼 전용 다이얼로그 확인 (aistudio 환경 지원)
         if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
           const selected = await window.aistudio.hasSelectedApiKey();
           if (selected) {
@@ -39,7 +39,7 @@ const App: React.FC = () => {
           }
         }
 
-        // 2. localStorage 확인 (브라우저 배포 환경 핵심 로직)
+        // 2. localStorage 확인 (브라우저 배포 환경 핵심 로직 - process.env 제거됨)
         const localKey = localStorage.getItem('GEMINI_API_KEY');
         if (localKey && localKey.trim().length > 10) {
           setIsKeySelected(true);
