@@ -8,7 +8,7 @@ import { SplitViewEditor } from './components/SplitViewEditor';
 import { DataPipeline } from './components/DataPipeline';
 import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
-import { ShieldAlert, X, ShieldCheck, Key, Save } from 'lucide-react';
+import { X, ShieldCheck, Key, Save, ShieldAlert } from 'lucide-react';
 
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'admin' | 'reader'>('admin');
@@ -16,11 +16,12 @@ const App: React.FC = () => {
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   
-  // Settings Modal State
+  // Settings Modal State (API 키 입력용)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempKey, setTempKey] = useState(localStorage.getItem('GEMINI_API_KEY') || '');
 
   useEffect(() => {
+    // 저장된 콘텐츠 불러오기
     const saved = localStorage.getItem('auraflow_contents');
     if (saved) {
       try {
@@ -47,7 +48,7 @@ const App: React.FC = () => {
   const handleSaveKeys = () => {
     if (tempKey.trim()) {
       localStorage.setItem('GEMINI_API_KEY', tempKey.trim());
-      alert("API 키가 안전하게 저장되었습니다.");
+      alert("API 키가 저장되었습니다. 이제 AI 기능을 사용할 수 있습니다.");
       setIsSettingsOpen(false);
     } else {
       alert("유효한 API 키를 입력해주세요.");
@@ -73,9 +74,11 @@ const App: React.FC = () => {
     }
   };
 
+  // [중요] 조건부 리턴을 모두 삭제하여 무조건 메인 레이아웃을 렌더링합니다.
   return (
     <div className={`flex h-screen ${viewMode === 'admin' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'} overflow-hidden relative font-['Noto_Sans_KR']`}>
-      {/* Main Layout (Always Rendered) */}
+      
+      {/* Sidebar - 관리자 모드일 때만 표시 */}
       {viewMode === 'admin' && (
         <Sidebar 
           activeTab={activeTab} 
@@ -85,16 +88,23 @@ const App: React.FC = () => {
         />
       )}
       
+      {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto">
         {renderContent()}
+        
+        {/* 리더 모드에서 관리자 모드로 돌아가는 버튼 */}
         {viewMode === 'reader' && (
-          <button onClick={() => setViewMode('admin')} className="fixed bottom-8 right-8 bg-slate-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50">
+          <button 
+            onClick={() => setViewMode('admin')} 
+            className="fixed bottom-8 right-8 bg-slate-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50 flex items-center gap-2"
+          >
             <ShieldAlert size={24} />
+            <span className="font-bold text-xs pr-2">편집국 돌아가기</span>
           </button>
         )}
       </main>
 
-      {/* API Settings Modal */}
+      {/* API Key Settings Modal (Always accessible via Sidebar) */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[40px] shadow-2xl overflow-hidden scale-in animate-in zoom-in-95 duration-200">
@@ -115,11 +125,11 @@ const App: React.FC = () => {
                   type="password"
                   value={tempKey}
                   onChange={(e) => setTempKey(e.target.value)}
-                  placeholder="AI-xxxx..."
+                  placeholder="API 키를 여기에 입력하세요..."
                   className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-5 text-white font-mono text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                 />
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  * 입력하신 키는 브라우저의 localStorage에만 저장되며, 어떠한 서버로도 전송되지 않습니다.
+                <p className="text-[10px] text-slate-400 leading-relaxed italic">
+                  * 키가 없으면 AI 기능이 작동하지 않습니다. [ai.google.dev]에서 발급받으세요.
                 </p>
               </div>
 
