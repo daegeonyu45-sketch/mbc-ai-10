@@ -6,9 +6,10 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: any) => void;
   onGoToReader: () => void;
+  onOpenSettings: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoToReader }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoToReader, onOpenSettings }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
@@ -20,7 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoT
   ];
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-72'} bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 relative`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-72'} bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 relative z-50`}>
       {/* Collapse Toggle */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -32,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoT
       <div className={`p-8 flex flex-col gap-1 border-b border-slate-800/50 ${isCollapsed ? 'items-center px-4' : ''}`}>
         <div className="flex items-center gap-3">
           <Newspaper className="text-blue-500 w-6 h-6 shrink-0" />
-          {!isCollapsed && <h1 className="serif text-2xl font-black italic tracking-tighter">The Ullim Desk</h1>}
+          {!isCollapsed && <h1 className="serif text-2xl font-black italic tracking-tighter text-white">The Ullim Desk</h1>}
         </div>
         {!isCollapsed && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-9">AI Newsroom Terminal</p>}
       </div>
@@ -55,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoT
         ))}
       </nav>
 
-      <div className={`p-4 space-y-3 ${isCollapsed ? 'items-center' : ''}`}>
+      <div className={`p-4 space-y-3 ${isCollapsed ? 'items-center' : ''} border-t border-slate-800/50`}>
         <button 
           onClick={onGoToReader}
           className={`w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all group ${isCollapsed ? 'px-0 justify-center border-0 bg-transparent hover:bg-slate-800' : ''}`}
@@ -68,12 +69,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoT
           {!isCollapsed && <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors" />}
         </button>
         
-        {!isCollapsed && (
-          <button className="w-full flex items-center gap-3 px-5 py-3 rounded-xl text-slate-500 hover:text-slate-300 transition-colors">
-            <Settings className="w-4 h-4 shrink-0" />
-            <span className="font-bold text-xs uppercase tracking-wider">시스템 설정</span>
-          </button>
-        )}
+        <button 
+          onClick={onOpenSettings}
+          className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all ${isCollapsed ? 'justify-center px-0' : ''}`}
+        >
+          <Settings className="w-5 h-5 shrink-0" />
+          {!isCollapsed && <span className="font-bold text-xs uppercase tracking-wider">⚙️ API 설정</span>}
+        </button>
       </div>
     </aside>
   );

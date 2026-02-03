@@ -5,7 +5,7 @@
  * API key is retrieved exclusively from localStorage for browser compatibility.
  */
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { CategoryType } from "../types";
 
 // [실 운영 모드] Mock Mode 비활성화
@@ -15,11 +15,11 @@ const USE_DEMO_MODE = false;
  * 인스턴스 생성 시점에 localStorage에서 최신 API 키를 참조합니다.
  */
 const getAI = () => {
-  // 브라우저 localStorage에서 키 호출 (process.env 사용 안 함)
   const apiKey = localStorage.getItem('GEMINI_API_KEY');
   
   if (!apiKey) {
-    throw new Error("API 키가 감지되지 않았습니다. 설정 화면에서 API 키를 입력해 주세요.");
+    alert("API 키가 설정되지 않았습니다. 왼쪽 하단 [⚙️ API 설정] 메뉴에서 키를 등록해주세요!");
+    throw new Error("API Key Missing");
   }
   return new GoogleGenAI({ apiKey });
 };

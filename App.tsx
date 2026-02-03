@@ -8,52 +8,19 @@ import { SplitViewEditor } from './components/SplitViewEditor';
 import { DataPipeline } from './components/DataPipeline';
 import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
-import { ShieldAlert, Newspaper, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
-
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
+import { ShieldAlert, X, ShieldCheck, Key, Save } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [isKeySelected, setIsKeySelected] = useState<boolean | null>(null);
   const [viewMode, setViewMode] = useState<'admin' | 'reader'>('admin');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'engine' | 'canvas' | 'editor' | 'pipeline' | 'analytics'>('dashboard');
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
+  
+  // Settings Modal State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [tempKey, setTempKey] = useState(localStorage.getItem('GEMINI_API_KEY') || '');
 
   useEffect(() => {
-    const checkKey = async () => {
-      try {
-        // 1. 플랫폼 전용 다이얼로그 확인 (aistudio 환경 지원)
-        if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-          const selected = await window.aistudio.hasSelectedApiKey();
-          if (selected) {
-            setIsKeySelected(true);
-            return;
-          }
-        }
-
-        // 2. localStorage 확인 (브라우저 배포 환경 핵심 로직 - process.env 제거됨)
-        const localKey = localStorage.getItem('GEMINI_API_KEY');
-        if (localKey && localKey.trim().length > 10) {
-          setIsKeySelected(true);
-        } else {
-          setIsKeySelected(false);
-        }
-      } catch (error) {
-        console.error("Key verification failed", error);
-        setIsKeySelected(false);
-      }
-    };
-    
-    checkKey();
-
     const saved = localStorage.getItem('auraflow_contents');
     if (saved) {
       try {
@@ -63,26 +30,6 @@ const App: React.FC = () => {
       }
     }
   }, []);
-
-  const handleOpenKeyDialog = async () => {
-    try {
-      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-        await window.aistudio.openSelectKey();
-        setIsKeySelected(true);
-      } else {
-        const key = prompt("GEMINI API 키를 입력해 주세요 (브라우저에 안전하게 저장됩니다):");
-        if (key && key.trim().length > 10) {
-          localStorage.setItem('GEMINI_API_KEY', key.trim());
-          setIsKeySelected(true);
-        } else if (key) {
-          alert("유효하지 않은 키 형식입니다.");
-        }
-      }
-    } catch (err) {
-      console.error("Failed to open key dialog", err);
-      setIsKeySelected(true);
-    }
-  };
 
   const saveContent = (item: ContentItem) => {
     const existingIndex = contents.findIndex(c => c.id === item.id);
@@ -95,6 +42,16 @@ const App: React.FC = () => {
     }
     setContents(newContents);
     localStorage.setItem('auraflow_contents', JSON.stringify(newContents));
+  };
+
+  const handleSaveKeys = () => {
+    if (tempKey.trim()) {
+      localStorage.setItem('GEMINI_API_KEY', tempKey.trim());
+      alert("API 키가 안전하게 저장되었습니다.");
+      setIsSettingsOpen(false);
+    } else {
+      alert("유효한 API 키를 입력해주세요.");
+    }
   };
 
   const renderContent = () => {
@@ -116,44 +73,18 @@ const App: React.FC = () => {
     }
   };
 
-  if (isKeySelected === false) {
-    return (
-      <div className="fixed inset-0 z-[9999] bg-slate-950 flex items-center justify-center p-6 text-white">
-        <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[40px] p-12 text-center space-y-10 shadow-2xl">
-          <div className="flex justify-center">
-            <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-xl">
-              <Newspaper className="text-white w-10 h-10" />
-            </div>
-          </div>
-          <div className="space-y-4">
-            <h1 className="text-3xl font-black uppercase tracking-tighter italic">AuraFlow Terminal</h1>
-            <p className="text-slate-400 text-sm leading-relaxed">Vercel 배포 환경에서 AI 엔진을 구동하기 위해 API 키 설정이 필요합니다.</p>
-          </div>
-          <button onClick={handleOpenKeyDialog} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black flex items-center justify-center gap-3 transition-all">
-            <ShieldCheck size={20} /> API 키 설정하고 시작하기
-          </button>
-          <div className="pt-6 border-t border-slate-800">
-            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-white flex items-center justify-center gap-2 underline">
-              <ExternalLink size={12} /> 결제 및 가이드라인 확인
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isKeySelected === null) {
-    return (
-      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
-        <Zap className="text-blue-600 animate-pulse w-12 h-12" />
-        <p className="text-slate-500 text-xs font-black uppercase tracking-[0.3em]">Connecting to Engine...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className={`flex h-screen ${viewMode === 'admin' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'} overflow-hidden`}>
-      {viewMode === 'admin' && <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onGoToReader={() => setViewMode('reader')} />}
+    <div className={`flex h-screen ${viewMode === 'admin' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'} overflow-hidden relative font-['Noto_Sans_KR']`}>
+      {/* Main Layout (Always Rendered) */}
+      {viewMode === 'admin' && (
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          onGoToReader={() => setViewMode('reader')} 
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      )}
+      
       <main className="flex-1 overflow-y-auto">
         {renderContent()}
         {viewMode === 'reader' && (
@@ -162,6 +93,54 @@ const App: React.FC = () => {
           </button>
         )}
       </main>
+
+      {/* API Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[40px] shadow-2xl overflow-hidden scale-in animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-800 flex items-center justify-between">
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+                <ShieldCheck size={24} className="text-blue-500" /> API ENGINE CONFIG
+              </h3>
+              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-10 space-y-8">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Key size={12} /> Google Gemini API Key
+                </label>
+                <input 
+                  type="password"
+                  value={tempKey}
+                  onChange={(e) => setTempKey(e.target.value)}
+                  placeholder="AI-xxxx..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-5 text-white font-mono text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                />
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  * 입력하신 키는 브라우저의 localStorage에만 저장되며, 어떠한 서버로도 전송되지 않습니다.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="flex-1 py-4 bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-700 transition-all border border-slate-700"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={handleSaveKeys}
+                  className="flex-1 py-4 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
+                >
+                  <Save size={16} /> 설정 저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
