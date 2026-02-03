@@ -10,11 +10,27 @@ import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
 import { ShieldAlert, Newspaper, Lock, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
 
+/**
+ * Vercel/Vite 등 브라우저 환경에서 process.env 접근 시 ReferenceError 방지
+ */
+if (typeof (window as any).process === 'undefined') {
+  (window as any).process = { env: {} };
+}
+
+// Fixed declaration issues by moving interface into global scope and making property optional
 declare global {
+  /**
+   * AI Studio 인터페이스 정의
+   */
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
   interface Window {
-    // Fixed: Using the provided AIStudio type to prevent subsequent property declaration errors.
-    aistudio: AIStudio;
-    process?: { env: Record<string, string> };
+    // aistudio must be optional to match identical modifiers if already defined as optional globally
+    aistudio?: AIStudio;
+    process: { env: Record<string, string> };
   }
 }
 
@@ -35,11 +51,9 @@ const App: React.FC = () => {
         } else {
           /**
            * 브라우저 환경에서 process.env에 안전하게 접근
-           * ReferenceError 방지를 위해 typeof 체크 수행
+           * 이미 위에서 Shim을 추가했으므로 에러가 발생하지 않음
            */
-          const env = typeof process !== 'undefined' ? process.env : (window as any).process?.env;
-          const apiKey = env?.API_KEY;
-          
+          const apiKey = process.env.API_KEY;
           if (apiKey) {
             setIsKeySelected(true);
           } else {
@@ -70,11 +84,10 @@ const App: React.FC = () => {
     try {
       if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
         await window.aistudio.openSelectKey();
-        // Fixed: Following guidelines - assume key selection was successful after triggering openSelectKey()
+        // 가이드라인 준수: openSelectKey 호출 후 성공으로 간주하여 레이스 컨디션 방지
         setIsKeySelected(true);
       } else {
-        alert("이 환경에서는 API 키 선택 대화상자를 사용할 수 없습니다. 환경 변수를 확인하거나 지원되는 브라우저를 사용하세요.");
-        // 폴백으로 일단 통과 (환경변수가 나중에 주입될 가능성 고려)
+        alert("이 환경에서는 API 키 선택 대화상자를 사용할 수 없습니다. 환경 변수를 확인하세요.");
         setIsKeySelected(true);
       }
     } catch (err) {
@@ -153,7 +166,7 @@ const App: React.FC = () => {
     }
   };
 
-  // API Key Guard Screen (하얀 화면 방지용 초기 로딩 및 안내 화면)
+  // API Key Guard Screen
   if (isKeySelected === false) {
     return (
       <div className="fixed inset-0 z-[9999] bg-slate-950 flex items-center justify-center p-6 overflow-hidden">
@@ -212,7 +225,7 @@ const App: React.FC = () => {
     );
   }
 
-  // 로딩 상태 (검은 화면 방지)
+  // 초기 로딩 상태
   if (isKeySelected === null) {
     return (
       <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
