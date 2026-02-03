@@ -1,0 +1,7 @@
+{
+  "name": "AuraFlow AI: All-in-One Content Automation Platform",
+  "description": "A comprehensive generative AI platform for automated data crawling, content drafting, image generation, and interactive web publishing.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
