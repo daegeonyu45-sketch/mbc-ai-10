@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGoT
           className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all ${isCollapsed ? 'justify-center px-0' : ''}`}
         >
           <Settings className="w-5 h-5 shrink-0" />
-          {!isCollapsed && <span className="font-bold text-xs uppercase tracking-wider">⚙️ API 설정</span>}
+          {!isCollapsed && <span className="font-bold text-xs uppercase tracking-wider">API Key</span>}
         </button>
       </div>
     </aside>

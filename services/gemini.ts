@@ -1,62 +1,34 @@
 
-/**
- * SECURITY WARNING: 
- * This file does NOT contain any hardcoded API Keys.
- * API key is retrieved exclusively from localStorage for browser compatibility.
- */
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { CategoryType } from "../types";
 
-// [실 운영 모드] Mock Mode 비활성화
-const USE_DEMO_MODE = false;
-
 /**
- * 인스턴스 생성 시점에 localStorage에서 최신 API 키를 참조합니다.
+ * Initialize the Google GenAI client using the environment variable API_KEY.
+ * Follows the guidelines to always use process.env.API_KEY.
  */
 const getAI = () => {
-  const apiKey = localStorage.getItem('GEMINI_API_KEY');
-  
-  if (!apiKey) {
-    alert("API 키가 설정되지 않았습니다. 왼쪽 하단 [⚙️ API 설정] 메뉴에서 키를 등록해주세요!");
-    throw new Error("API Key Missing");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-/**
- * 실시간 뉴스 보도 사진 검색 함수 (Unsplash 활용)
- */
 export const fetchNewsImages = (query: string): string => {
   const encodedQuery = encodeURIComponent(query);
   return `https://images.unsplash.com/photo-1585829365234-781fdec3d4e4?auto=format&fit=crop&w=1200&q=80&sig=${encodedQuery}_${Date.now()}`;
 };
 
-/**
- * AI 이미지 생성 함수 (Pollinations 활용)
- */
 export const generateAIImage = (prompt: string): string => {
   const encodedPrompt = encodeURIComponent(prompt);
   return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1200&height=675&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
 };
 
-/**
- * 실시간 검색 보정 (Grounding)
- */
-export const conductAIGroundingSearch = async (query: string, useMock: boolean = false) => {
-  if (USE_DEMO_MODE || useMock) {
-    await new Promise(r => setTimeout(r, 800));
-    return { text: "실시간 정보 검색 결과 예시입니다.", sources: ["https://example.com"] };
-  }
-
+export const conductAIGroundingSearch = async (query: string) => {
   try {
     const ai = getAI();
+    
+    // Using gemini-3-flash-preview for search grounding tasks as per guidelines.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `다음 주제에 대해 최신 정보와 주요 세부 사항을 검색해 주세요: ${query}. 찾은 내용을 한국어로 요약하고 반드시 출처 URL들을 포함해 주세요.`,
-      config: { 
-        tools: [{ googleSearch: {} }] 
-      },
+      config: { tools: [{ googleSearch: {} }] },
     });
 
     const text = response.text || "";
@@ -70,15 +42,15 @@ export const conductAIGroundingSearch = async (query: string, useMock: boolean =
 
     return { text, sources: Array.from(new Set(sources)) };
   } catch (err: any) {
-    console.error("Grounding Search Error:", err);
+    // If the key is invalid or not found, prompt selection as per guidelines.
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     throw new Error(`검색 엔진 오류: ${err.message || "실시간 검색 중 문제가 발생했습니다."}`);
   }
 };
 
-/**
- * 기사 카테고리 분류
- */
-export const classifyArticle = async (text: string, useMock: boolean = false): Promise<CategoryType> => {
+export const classifyArticle = async (text: string): Promise<CategoryType> => {
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
@@ -88,26 +60,18 @@ export const classifyArticle = async (text: string, useMock: boolean = false): P
     const category = response.text?.trim() as CategoryType;
     const validCategories: CategoryType[] = ['Politics', 'Economy', 'Society', 'Tech', 'Culture'];
     return validCategories.includes(category) ? category : 'General';
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     return 'General';
   }
 };
 
-/**
- * 기사 초안 생성
- */
-export const generateArticleDraft = async (context: string, tone: string, length: string, useMock: boolean = false) => {
+export const generateArticleDraft = async (context: string, tone: string, length: string) => {
   try {
     const ai = getAI();
-    const prompt = `제공된 검색 결과(Context)를 바탕으로 신뢰할 수 있는 전문적인 뉴스 기사를 작성해 주세요. 
-    
-[Context]:
-${context}
-
-[요구사항]:
-- 어조: ${tone}
-- 분량: ${length === 'short' ? '짧게' : length === 'long' ? '길게' : '적당하게'}
-- 언어: 한국어`;
+    const prompt = `제공된 검색 결과(Context)를 바탕으로 신뢰할 수 있는 전문적인 뉴스 기사를 작성해 주세요.\n\n[Context]:\n${context}\n\n[요구사항]:\n- 어조: ${tone}\n- 분량: ${length === 'short' ? '짧게' : length === 'long' ? '길게' : '적당하게'}\n- 언어: 한국어`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -116,15 +80,14 @@ ${context}
     });
     return response.text || "기사 초안을 생성할 수 없습니다.";
   } catch (err: any) {
-    console.error("Generate Article Error:", err);
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     throw new Error(`기사 생성 오류: ${err.message}`);
   }
 };
 
-/**
- * 콘텐츠 요약
- */
-export const summarizeContent = async (text: string, useMock: boolean = false) => {
+export const summarizeContent = async (text: string) => {
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
@@ -133,13 +96,13 @@ export const summarizeContent = async (text: string, useMock: boolean = false) =
     });
     return response.text?.trim() || "요약 실패";
   } catch (err: any) {
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     return "핵심 내용을 요약 중입니다.";
   }
 };
 
-/**
- * OSMU 콘텐츠 생성 (카드뉴스 & 대본)
- */
 export const generateOSMUContent = async (article: string) => {
   try {
     const ai = getAI();
@@ -170,14 +133,14 @@ export const generateOSMUContent = async (article: string) => {
       }
     });
     return JSON.parse(response.text || "{}");
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     return { slides: [], script: "" };
   }
 };
 
-/**
- * 팩트 체크 및 제목 자극성 검사
- */
 export const performFactCheck = async (rawContext: string, generatedArticle: string) => {
   try {
     const ai = getAI();
@@ -198,14 +161,14 @@ export const performFactCheck = async (rawContext: string, generatedArticle: str
       }
     });
     return JSON.parse(response.text || "{}");
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     return { matchingScore: 100, clickbaitScore: 0, warnings: [] };
   }
 };
 
-/**
- * 기사 논쟁 추출
- */
 export const extractDebatePoints = async (article: string) => {
   try {
     const ai = getAI();
@@ -226,28 +189,29 @@ export const extractDebatePoints = async (article: string) => {
       }
     });
     return JSON.parse(response.text || "{}");
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     return { topic: "", pros: [], cons: [] };
   }
 };
 
-/**
- * 고품질 뉴스 이미지 생성
- */
 export const generateIllustrativeImage = async (prompt: string) => {
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: { parts: [{ text: `High-quality news photo: ${prompt}` }] },
-      config: { 
-        imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
-      },
+      config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } },
     });
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes("Requested entity was not found")) {
+      window.aistudio?.openSelectKey?.();
+    }
     console.error("Image Gen Error:", err);
   }
   return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";

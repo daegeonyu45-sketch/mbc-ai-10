@@ -34,8 +34,6 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
   const [status, setStatus] = useState<'idle' | 'typing' | 'saving' | 'saved' | 'generating'>('idle');
   const [isGenerating, setIsGenerating] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [useMockMode, setUseMockMode] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const typingTimer = useRef<any>(null);
@@ -79,7 +77,8 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
     addToast('AI가 요약을 작성 중입니다...', 'info');
     
     try {
-      const summary = await summarizeContent(draft.fullText || draft.title, useMockMode);
+      // Fix: Removed extra useMockMode argument to match function signature on line 82
+      const summary = await summarizeContent(draft.fullText || draft.title);
       handleChange('summary', summary);
       addToast('요약 생성이 완료되었습니다.', 'success');
     } catch (err: any) {
@@ -103,7 +102,8 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
     addToast('AI 기사 작성을 시작합니다.', 'info');
 
     try {
-      const enhancedText = await generateArticleDraft(draft.title, '전문적인', 'medium', useMockMode);
+      // Fix: Removed extra useMockMode argument to match function signature on line 106
+      const enhancedText = await generateArticleDraft(draft.title, '전문적인', 'medium');
       handleChange('fullText', enhancedText);
       addToast('기사 작성이 완료되었습니다!', 'success');
     } catch (err: any) {
@@ -143,12 +143,6 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
-            >
-              <SettingsIcon size={20} />
-            </button>
             <button 
               onClick={handleSave}
               disabled={status === 'saving' || isGenerating}
@@ -241,47 +235,6 @@ export const SplitViewEditor: React.FC<Props> = ({ initialContent, onSave }) => 
           <ContentCanvas content={draft} onBack={() => {}} isPreviewMode={true} isLoading={isGenerating} />
         </div>
       </div>
-
-      {/* Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden scale-in animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-slate-800 flex items-center justify-between">
-              <h3 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-3">
-                <SettingsIcon size={20} className="text-blue-500" /> 시스템 설정
-              </h3>
-              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-8 space-y-8">
-              <div className="space-y-4">
-                <p className="text-xs font-bold text-slate-500 leading-relaxed italic">
-                  * API 키는 브라우저 보안 저장소(localStorage)를 통해 안전하게 관리됩니다. 기사 작성이 안 될 경우 설정을 확인해 주세요.
-                </p>
-                <div className="flex items-center justify-between p-5 bg-slate-800/50 rounded-2xl border border-slate-700">
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-white">테스트 모드 (Mock Data)</p>
-                    <p className="text-[10px] text-slate-500">API 호출 없이 더미 데이터를 사용하여 기능을 테스트합니다.</p>
-                  </div>
-                  <button 
-                    onClick={() => setUseMockMode(!useMockMode)}
-                    className={`w-12 h-6 rounded-full transition-all relative ${useMockMode ? 'bg-blue-600' : 'bg-slate-700'}`}
-                  >
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${useMockMode ? 'left-7' : 'left-1'}`}></div>
-                  </button>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsSettingsOpen(false)}
-                className="w-full py-4 bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-700 transition-all border border-slate-700"
-              >
-                설정 닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Toasts */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[300] flex flex-col items-center gap-3">

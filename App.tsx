@@ -8,26 +8,23 @@ import { SplitViewEditor } from './components/SplitViewEditor';
 import { DataPipeline } from './components/DataPipeline';
 import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
-import { X, ShieldCheck, Key, Save, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
 const App: React.FC = () => {
+  // 1. 상태 정의
   const [viewMode, setViewMode] = useState<'admin' | 'reader'>('admin');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'engine' | 'canvas' | 'editor' | 'pipeline' | 'analytics'>('dashboard');
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
-  
-  // Settings Modal State (API 키 입력용)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [tempKey, setTempKey] = useState(localStorage.getItem('GEMINI_API_KEY') || '');
 
+  // 2. 로컬 데이터 로드
   useEffect(() => {
-    // 저장된 콘텐츠 불러오기
     const saved = localStorage.getItem('auraflow_contents');
     if (saved) {
       try {
         setContents(JSON.parse(saved));
       } catch (e) {
-        console.error("Failed to load saved contents", e);
+        console.error("데이터 로드 실패:", e);
       }
     }
   }, []);
@@ -45,17 +42,18 @@ const App: React.FC = () => {
     localStorage.setItem('auraflow_contents', JSON.stringify(newContents));
   };
 
-  const handleSaveKeys = () => {
-    if (tempKey.trim()) {
-      localStorage.setItem('GEMINI_API_KEY', tempKey.trim());
-      alert("API 키가 저장되었습니다. 이제 AI 기능을 사용할 수 있습니다.");
-      setIsSettingsOpen(false);
-    } else {
-      alert("유효한 API 키를 입력해주세요.");
+  /**
+   * Handle API Key selection using the Google aistudio utility as per guidelines.
+   * This replaces the custom manual entry UI.
+   */
+  const handleOpenKeySelection = async () => {
+    if (window.aistudio?.openSelectKey) {
+      await window.aistudio.openSelectKey();
     }
   };
 
-  const renderContent = () => {
+  // 3. 화면 전환 로직 (if문 없이 함수로 처리)
+  const renderMainView = () => {
     switch (activeTab) {
       case 'dashboard':
         return <WorkflowDashboard contents={contents} onView={(item) => { setSelectedContent(item); setActiveTab('canvas'); }} onCreateNew={() => setActiveTab('engine')} onSwitchToAdmin={() => setViewMode('admin')} />;
@@ -70,87 +68,39 @@ const App: React.FC = () => {
       case 'analytics':
         return <Analytics contents={contents} />;
       default:
-        return null;
+        return <WorkflowDashboard contents={contents} onView={(item) => { setSelectedContent(item); setActiveTab('canvas'); }} onCreateNew={() => setActiveTab('engine')} onSwitchToAdmin={() => setViewMode('admin')} />;
     }
   };
 
-  // [중요] 조건부 리턴을 모두 삭제하여 무조건 메인 레이아웃을 렌더링합니다.
+  // 4. 무조건 렌더링 (차단 로직 없음)
   return (
     <div className={`flex h-screen ${viewMode === 'admin' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'} overflow-hidden relative font-['Noto_Sans_KR']`}>
       
-      {/* Sidebar - 관리자 모드일 때만 표시 */}
+      {/* 관리자 사이드바 - admin 모드일 때만 표시 */}
       {viewMode === 'admin' && (
         <Sidebar 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
           onGoToReader={() => setViewMode('reader')} 
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={handleOpenKeySelection}
         />
       )}
       
-      {/* Main Content Area */}
+      {/* 메인 작업 영역 - 항상 표시 */}
       <main className="flex-1 overflow-y-auto">
-        {renderContent()}
+        {renderMainView()}
         
-        {/* 리더 모드에서 관리자 모드로 돌아가는 버튼 */}
+        {/* 리더 모드 전용 플로팅 버튼 */}
         {viewMode === 'reader' && (
           <button 
             onClick={() => setViewMode('admin')} 
-            className="fixed bottom-8 right-8 bg-slate-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all z-50 flex items-center gap-2"
+            className="fixed bottom-8 right-8 bg-slate-900 text-white p-5 rounded-full shadow-2xl hover:scale-110 transition-all z-[9999] flex items-center gap-3 border border-slate-700"
           >
             <ShieldAlert size={24} />
-            <span className="font-bold text-xs pr-2">편집국 돌아가기</span>
+            <span className="font-bold text-sm">편집국 복귀</span>
           </button>
         )}
       </main>
-
-      {/* API Key Settings Modal (Always accessible via Sidebar) */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[40px] shadow-2xl overflow-hidden scale-in animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-slate-800 flex items-center justify-between">
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-                <ShieldCheck size={24} className="text-blue-500" /> API ENGINE CONFIG
-              </h3>
-              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-10 space-y-8">
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Key size={12} /> Google Gemini API Key
-                </label>
-                <input 
-                  type="password"
-                  value={tempKey}
-                  onChange={(e) => setTempKey(e.target.value)}
-                  placeholder="API 키를 여기에 입력하세요..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-5 text-white font-mono text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                />
-                <p className="text-[10px] text-slate-400 leading-relaxed italic">
-                  * 키가 없으면 AI 기능이 작동하지 않습니다. [ai.google.dev]에서 발급받으세요.
-                </p>
-              </div>
-
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="flex-1 py-4 bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-700 transition-all border border-slate-700"
-                >
-                  취소
-                </button>
-                <button 
-                  onClick={handleSaveKeys}
-                  className="flex-1 py-4 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
-                >
-                  <Save size={16} /> 설정 저장
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
