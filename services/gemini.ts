@@ -14,10 +14,12 @@ const USE_DEMO_MODE = false;
 
 /**
  * 인스턴스 생성 시점에 최신 API 키를 참조하도록 함수로 관리합니다.
- * ALWAYS use new GoogleGenAI({apiKey: process.env.API_KEY});
+ * 브라우저 환경에서 process 객체가 없을 경우를 대비하여 안전하게 접근합니다.
  */
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
+  // process가 정의되지 않은 환경(Vercel 등)에서의 에러 방지
+  const env = typeof process !== 'undefined' ? process.env : (window as any).process?.env;
+  const apiKey = env?.API_KEY;
   
   if (!apiKey) {
     throw new Error("API_KEY가 감지되지 않았습니다. 먼저 API 키를 설정해 주세요.");
@@ -238,7 +240,6 @@ export const generateIllustrativeImage = async (prompt: string) => {
         tools: [{ googleSearch: {} }] 
       },
     });
-    // Iterate through all parts to find the image part as per guidelines
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }

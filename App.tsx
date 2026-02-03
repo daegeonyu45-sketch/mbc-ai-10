@@ -10,15 +10,10 @@ import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
 import { ShieldAlert, Newspaper, Lock, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
 
-// Removed local AIStudio interface to prevent naming conflicts with potential global definitions
-
 declare global {
   interface Window {
-    // Use an inline type and make it optional to match potential pre-existing environmental declarations
-    aistudio?: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
+    // Fixed: Using the provided AIStudio type to prevent subsequent property declaration errors.
+    aistudio: AIStudio;
     process?: { env: Record<string, string> };
   }
 }
@@ -33,43 +28,57 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKey = async () => {
       try {
-        // Safe check for window.aistudio to prevent crashing on standard web hosting like Vercel.
+        // window.aistudio 존재 여부를 안전하게 확인
         if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
           const selected = await window.aistudio.hasSelectedApiKey();
           setIsKeySelected(selected);
         } else {
           /**
-           * Fallback for standard environments: If AI Studio extension isn't present,
-           * we check if process.env.API_KEY is available. If so, we bypass the guard.
+           * 브라우저 환경에서 process.env에 안전하게 접근
+           * ReferenceError 방지를 위해 typeof 체크 수행
            */
-          const apiKey = process.env.API_KEY;
+          const env = typeof process !== 'undefined' ? process.env : (window as any).process?.env;
+          const apiKey = env?.API_KEY;
+          
           if (apiKey) {
             setIsKeySelected(true);
           } else {
-            // Show the guard screen if no key is found and no studio environment exists.
+            // 키가 없으면 Guard 화면 표시
             setIsKeySelected(false);
           }
         }
       } catch (error) {
-        console.warn("API Key check failed:", error);
-        setIsKeySelected(true); // Fail open to allow standard env key access
+        console.warn("API Key check failed during initialization:", error);
+        // 에러 발생 시 사용자 경험을 위해 Guard 화면으로 유도
+        setIsKeySelected(false);
       }
     };
+    
     checkKey();
 
     const saved = localStorage.getItem('auraflow_contents');
     if (saved) {
-      setContents(JSON.parse(saved));
+      try {
+        setContents(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse saved contents", e);
+      }
     }
   }, []);
 
   const handleOpenKeyDialog = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      // MUST assume the key selection was successful after triggering openSelectKey() to mitigate race condition
-      setIsKeySelected(true);
-    } else {
-      alert("이 환경에서는 API 키 선택 대화상자를 사용할 수 없습니다. 환경 변수를 확인하세요.");
+    try {
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        await window.aistudio.openSelectKey();
+        // Fixed: Following guidelines - assume key selection was successful after triggering openSelectKey()
+        setIsKeySelected(true);
+      } else {
+        alert("이 환경에서는 API 키 선택 대화상자를 사용할 수 없습니다. 환경 변수를 확인하거나 지원되는 브라우저를 사용하세요.");
+        // 폴백으로 일단 통과 (환경변수가 나중에 주입될 가능성 고려)
+        setIsKeySelected(true);
+      }
+    } catch (err) {
+      console.error("Failed to open key dialog", err);
       setIsKeySelected(true);
     }
   };
@@ -144,7 +153,7 @@ const App: React.FC = () => {
     }
   };
 
-  // API Key Guard Screen
+  // API Key Guard Screen (하얀 화면 방지용 초기 로딩 및 안내 화면)
   if (isKeySelected === false) {
     return (
       <div className="fixed inset-0 z-[9999] bg-slate-950 flex items-center justify-center p-6 overflow-hidden">
@@ -195,7 +204,7 @@ const App: React.FC = () => {
             </a>
             <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-900 rounded-full border border-slate-800">
               <Lock size={10} className="text-emerald-500" />
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Military-grade Sandbox Security</span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sandbox Security Active</span>
             </div>
           </div>
         </div>
@@ -203,7 +212,7 @@ const App: React.FC = () => {
     );
   }
 
-  // Loading state while checking key
+  // 로딩 상태 (검은 화면 방지)
   if (isKeySelected === null) {
     return (
       <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
@@ -215,7 +224,6 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex h-screen transition-colors duration-500 ${viewMode === 'admin' ? 'bg-slate-900 text-slate-100' : 'bg-[#fdfdfd] text-[#1a1a1a]'} overflow-hidden`}>
-      {/* Admin Sidebar - Only visible in Admin Mode */}
       {viewMode === 'admin' && (
         <Sidebar 
           activeTab={activeTab} 
@@ -224,13 +232,11 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Main Content Area */}
       <main className={`flex-1 overflow-hidden relative transition-all duration-500 ${viewMode === 'admin' ? 'bg-slate-950/50 backdrop-blur-sm' : 'bg-transparent'}`}>
         <div className="animate-in fade-in duration-700 h-full overflow-y-auto scroll-smooth">
           {renderContent()}
         </div>
 
-        {/* Floating Admin Return Button (Only in Reader Mode) */}
         {viewMode === 'reader' && (
           <button 
             onClick={() => setViewMode('admin')}
