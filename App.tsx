@@ -8,7 +8,7 @@ import { SplitViewEditor } from './components/SplitViewEditor';
 import { DataPipeline } from './components/DataPipeline';
 import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
-import { ShieldAlert, Newspaper, Lock, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
+import { ShieldAlert, Newspaper, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
 
 declare global {
   interface AIStudio {
@@ -17,7 +17,6 @@ declare global {
   }
   interface Window {
     aistudio?: AIStudio;
-    process: { env: Record<string, string> };
   }
 }
 
@@ -31,27 +30,24 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKey = async () => {
       try {
-        // 우선 플랫폼 전용 다이얼로그 확인
+        // 1. 플랫폼 전용 다이얼로그 확인
         if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
           const selected = await window.aistudio.hasSelectedApiKey();
-          setIsKeySelected(selected);
-        } else {
-          // Vercel 배포 환경 등에서는 process.env 또는 localStorage 확인
-          // localStorage 키 이름은 GEMINI_API_KEY로 통일
-          const localKey = localStorage.getItem('GEMINI_API_KEY');
-          const envKey = process.env.API_KEY;
-          
-          if (localKey) {
-            // localStorage에 키가 있으면 process.env에 주입하여 SDK 호환성 유지
-            process.env.API_KEY = localKey;
+          if (selected) {
             setIsKeySelected(true);
-          } else if (envKey) {
-            setIsKeySelected(true);
-          } else {
-            setIsKeySelected(false);
+            return;
           }
         }
+
+        // 2. localStorage 확인 (브라우저 배포 환경 핵심 로직)
+        const localKey = localStorage.getItem('GEMINI_API_KEY');
+        if (localKey && localKey.trim().length > 10) {
+          setIsKeySelected(true);
+        } else {
+          setIsKeySelected(false);
+        }
       } catch (error) {
+        console.error("Key verification failed", error);
         setIsKeySelected(false);
       }
     };
@@ -74,14 +70,16 @@ const App: React.FC = () => {
         await window.aistudio.openSelectKey();
         setIsKeySelected(true);
       } else {
-        const key = prompt("GEMINI API 키를 입력해 주세요 (localStorage에 안전하게 저장됩니다):");
-        if (key) {
-          localStorage.setItem('GEMINI_API_KEY', key);
-          process.env.API_KEY = key;
+        const key = prompt("GEMINI API 키를 입력해 주세요 (브라우저에 안전하게 저장됩니다):");
+        if (key && key.trim().length > 10) {
+          localStorage.setItem('GEMINI_API_KEY', key.trim());
           setIsKeySelected(true);
+        } else if (key) {
+          alert("유효하지 않은 키 형식입니다.");
         }
       }
     } catch (err) {
+      console.error("Failed to open key dialog", err);
       setIsKeySelected(true);
     }
   };
@@ -120,7 +118,7 @@ const App: React.FC = () => {
 
   if (isKeySelected === false) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-slate-950 flex items-center justify-center p-6">
+      <div className="fixed inset-0 z-[9999] bg-slate-950 flex items-center justify-center p-6 text-white">
         <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[40px] p-12 text-center space-y-10 shadow-2xl">
           <div className="flex justify-center">
             <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-xl">
@@ -128,8 +126,8 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="space-y-4">
-            <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">AuraFlow Terminal</h1>
-            <p className="text-slate-400 text-sm leading-relaxed">플랫폼 보안을 위해 API 키 설정이 필요합니다. 설정된 키는 브라우저 환경에 맞춰 안전하게 관리됩니다.</p>
+            <h1 className="text-3xl font-black uppercase tracking-tighter italic">AuraFlow Terminal</h1>
+            <p className="text-slate-400 text-sm leading-relaxed">Vercel 배포 환경에서 AI 엔진을 구동하기 위해 API 키 설정이 필요합니다.</p>
           </div>
           <button onClick={handleOpenKeyDialog} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black flex items-center justify-center gap-3 transition-all">
             <ShieldCheck size={20} /> API 키 설정하고 시작하기
