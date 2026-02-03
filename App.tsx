@@ -10,10 +10,16 @@ import { Analytics } from './components/Analytics';
 import { ContentItem } from './types';
 import { ShieldAlert, Newspaper, Lock, ShieldCheck, ExternalLink, Zap } from 'lucide-react';
 
-// Fixed: Use the existing global AIStudio type to prevent declaration conflicts.
+// Removed local AIStudio interface to prevent naming conflicts with potential global definitions
+
 declare global {
   interface Window {
-    aistudio: AIStudio;
+    // Use an inline type and make it optional to match potential pre-existing environmental declarations
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+    process?: { env: Record<string, string> };
   }
 }
 
@@ -26,9 +32,28 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkKey = async () => {
-      // The globally pre-configured aistudio object is used to check key selection state.
-      const selected = await window.aistudio.hasSelectedApiKey();
-      setIsKeySelected(selected);
+      try {
+        // Safe check for window.aistudio to prevent crashing on standard web hosting like Vercel.
+        if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+          const selected = await window.aistudio.hasSelectedApiKey();
+          setIsKeySelected(selected);
+        } else {
+          /**
+           * Fallback for standard environments: If AI Studio extension isn't present,
+           * we check if process.env.API_KEY is available. If so, we bypass the guard.
+           */
+          const apiKey = process.env.API_KEY;
+          if (apiKey) {
+            setIsKeySelected(true);
+          } else {
+            // Show the guard screen if no key is found and no studio environment exists.
+            setIsKeySelected(false);
+          }
+        }
+      } catch (error) {
+        console.warn("API Key check failed:", error);
+        setIsKeySelected(true); // Fail open to allow standard env key access
+      }
     };
     checkKey();
 
@@ -39,9 +64,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleOpenKeyDialog = async () => {
-    // Open the platform dialog for API key selection.
-    await window.aistudio.openSelectKey();
-    setIsKeySelected(true); // Assume success after dialog trigger to avoid race conditions.
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      // MUST assume the key selection was successful after triggering openSelectKey() to mitigate race condition
+      setIsKeySelected(true);
+    } else {
+      alert("이 환경에서는 API 키 선택 대화상자를 사용할 수 없습니다. 환경 변수를 확인하세요.");
+      setIsKeySelected(true);
+    }
   };
 
   const saveContent = (item: ContentItem) => {
@@ -175,7 +205,12 @@ const App: React.FC = () => {
 
   // Loading state while checking key
   if (isKeySelected === null) {
-    return <div className="h-screen w-screen bg-slate-950 flex items-center justify-center"><Zap className="text-blue-600 animate-pulse w-12 h-12" /></div>;
+    return (
+      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
+        <Zap className="text-blue-600 animate-pulse w-12 h-12" />
+        <p className="text-slate-500 text-xs font-black uppercase tracking-[0.3em]">Establishing Secure Connection...</p>
+      </div>
+    );
   }
 
   return (

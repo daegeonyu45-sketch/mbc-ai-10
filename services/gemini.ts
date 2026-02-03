@@ -14,9 +14,11 @@ const USE_DEMO_MODE = false;
 
 /**
  * 인스턴스 생성 시점에 최신 API 키를 참조하도록 함수로 관리합니다.
+ * ALWAYS use new GoogleGenAI({apiKey: process.env.API_KEY});
  */
 const getAI = () => {
   const apiKey = process.env.API_KEY;
+  
   if (!apiKey) {
     throw new Error("API_KEY가 감지되지 않았습니다. 먼저 API 키를 설정해 주세요.");
   }
@@ -166,7 +168,7 @@ JSON 형식으로 응답해 주세요.`,
         }
       }
     });
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || "{}");
   } catch (err) {
     return { 
       slides: [{ text: "내용 분석 중...", image_keyword: "news", image_source_type: "search" }], 
@@ -194,7 +196,7 @@ export const performFactCheck = async (rawContext: string, generatedArticle: str
         }
       }
     });
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || "{}");
   } catch (err) {
     return { matchingScore: 100, clickbaitScore: 0, warnings: [] };
   }
@@ -219,7 +221,7 @@ export const extractDebatePoints = async (article: string) => {
         }
       }
     });
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || "{}");
   } catch (err) {
     return { topic: "추가 논의가 필요한 주제입니다.", pros: [], cons: [] };
   }
@@ -232,10 +234,11 @@ export const generateIllustrativeImage = async (prompt: string) => {
       model: 'gemini-3-pro-image-preview',
       contents: { parts: [{ text: `High-quality photojournalism style news photo about: ${prompt}. Professional lighting, 4k.` }] },
       config: { 
-        imageConfig: { aspectRatio: "16:9" },
+        imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
         tools: [{ googleSearch: {} }] 
       },
     });
+    // Iterate through all parts to find the image part as per guidelines
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
